@@ -1,0 +1,113 @@
+DOCUMENTAÇÃO DO PROCESSO DE TRANSFORMAÇÃO DE DADOS
+
+1) LINK DA BASE DE DADOS ORIGINAL
+Cartoes-Campeonato.csv
+
+2) BREVE EXPLICAÇÃO DO TEMA
+Este conjunto de dados contém informações sobre cartões (amarelos e vermelhos) recebidos por jogadores durante partidas de campeonato de futebol. Os dados registram detalhes como o ID da partida, rodada, clube, tipo de cartão (amarelo/vermelho), nome do atleta, número da camisa, posição do jogador e o minuto em que o cartão foi aplicado.
+
+3) ETAPAS DE LIMPEZA E TRANSFORMAÇÃO APLICADAS
+
+a) Leitura do arquivo CSV original e criação de um arquivo SQL
+   - Utilização de um script Python para converter os dados do formato CSV para comandos SQL
+   - Criação de uma tabela "cartoes" com tipos de dados adequados para cada coluna
+   - Geração de comandos INSERT para cada registro
+
+b) Remoção de registros com valores nulos
+   - Implementação de filtro para excluir registros que possuem qualquer coluna com valor nulo
+   - Contagem e relatório dos registros processados, inseridos e ignorados
+
+Trecho do código utilizado para transformação:
+```python
+import csv
+import os
+
+def csv_to_sql():
+    # Input and output file paths
+    csv_file = 'Cartoes-Campeonato.csv'
+    sql_file = 'cartao.SQL'
+    
+    # Open the CSV file and read headers
+    with open(csv_file, 'r', encoding='utf-8') as file:
+        csv_reader = csv.reader(file)
+        headers = next(csv_reader)
+        
+        # Create SQL file
+        with open(sql_file, 'w', encoding='utf-8') as sql:
+            # Write CREATE TABLE statement
+            sql.write("CREATE TABLE cartoes (\n")
+            for i, header in enumerate(headers):
+                # Determine SQL data type based on header name
+                if header in ['partida_id', 'num_camisa', 'minuto']:
+                    data_type = "INTEGER"
+                else:
+                    data_type = "VARCHAR(255)"
+                
+                # Add comma for all but the last column
+                if i < len(headers) - 1:
+                    sql.write(f"    {header} {data_type},\n")
+                else:
+                    sql.write(f"    {header} {data_type}\n")
+            
+            sql.write(");\n\n")
+            
+            # Write INSERT statements for each row
+            sql.write("-- Inserting data\n")
+            
+            # Counter for skipped rows
+            skipped_rows = 0
+            inserted_rows = 0
+            
+            for row in csv_reader:
+                # Skip rows with any null/empty values
+                if '' in row or any(value.strip() == '' for value in row):
+                    skipped_rows += 1
+                    continue
+                    
+                # Format values for SQL insert
+                formatted_values = []
+                for value in row:
+                    if value.isdigit():
+                        formatted_values.append(value)
+                    else:
+                        # Escape single quotes and wrap in quotes
+                        escaped_value = value.replace("'", "''").replace('"', '')
+                        formatted_values.append(f"'{escaped_value}'")
+                
+                values_str = ", ".join(formatted_values)
+                sql.write(f"INSERT INTO cartoes ({', '.join(headers)}) VALUES ({values_str});\n")
+                inserted_rows += 1
+            
+            print(f"SQL file '{sql_file}' created successfully.")
+            print(f"Records processed: {inserted_rows + skipped_rows}")
+            print(f"Records inserted: {inserted_rows}")
+            print(f"Records skipped (had null values): {skipped_rows}")
+```
+
+4) ESTRUTURA FINAL DOS DADOS
+
+A tabela final "cartoes" possui a seguinte estrutura:
+
+CREATE TABLE cartoes (
+    partida_id INTEGER,
+    rodata VARCHAR(255),
+    clube VARCHAR(255),
+    cartao VARCHAR(255),
+    atleta VARCHAR(255),
+    num_camisa VARCHAR(255),
+    posicao VARCHAR(255),
+    minuto VARCHAR(255)
+);
+
+Exemplos de registros:
+
+INSERT INTO cartoes (partida_id, rodata, clube, cartao, atleta, num_camisa, posicao, minuto) 
+VALUES (4607, 1, 'Figueirense', 'Amarelo', 'Paulo Roberto da Silva', 28, 'Atacante', 66);
+
+INSERT INTO cartoes (partida_id, rodata, clube, cartao, atleta, num_camisa, posicao, minuto) 
+VALUES (4608, 1, 'Internacional', 'Amarelo', 'Andrés D''Alessandro', 10, 'Meio-campo', 72);
+
+Observações finais:
+- Todos os registros com valores nulos foram excluídos do arquivo SQL final
+- Os dados estão prontos para serem importados em um sistema de gerenciamento de banco de dados SQL
+- As consultas SQL podem ser executadas para analisar padrões de cartões por clube, posição, jogador, etc. 
