@@ -1,17 +1,3 @@
-CREATE DATABASE t2;
-
-use t2;
-
-CREATE TABLE cartoes (
-    partida_id INTEGER,
-    rodata VARCHAR(255),
-    clube VARCHAR(255),
-    cartao VARCHAR(255),
-    atleta VARCHAR(255),
-    num_camisa VARCHAR(255),
-    posicao VARCHAR(255),
-    minuto VARCHAR(255)
-);
 
 -- Inserting data
 INSERT INTO cartoes (partida_id, rodata, clube, cartao, atleta, num_camisa, posicao, minuto) VALUES (4607, 1, 'Figueirense', 'Amarelo', 'Paulo Roberto da Silva', 28, '', 66);
@@ -18871,45 +18857,4 @@ INSERT INTO cartoes (partida_id, rodata, clube, cartao, atleta, num_camisa, posi
 INSERT INTO cartoes (partida_id, rodata, clube, cartao, atleta, num_camisa, posicao, minuto) VALUES (8405, 38, 'Vasco', 'Amarelo', 'Gary Medel', 17, 'Zagueiro', 84);
 INSERT INTO cartoes (partida_id, rodata, clube, cartao, atleta, num_camisa, posicao, minuto) VALUES (8405, 38, 'Bragantino', 'Amarelo', 'Eduardo Sasha', 19, 'Atacante', 17);
 INSERT INTO cartoes (partida_id, rodata, clube, cartao, atleta, num_camisa, posicao, minuto) VALUES (8405, 38, 'Bragantino', 'Vermelho', 'Léo Realpe', 2, 'Zagueiro', 75);
-
-select * from cartoes;
-
--- 1. Conta quantos cartões foram aplicados por tipo (ex: amarelo, vermelho)
-SELECT cartao, COUNT(*) AS total
-FROM cartoes
-GROUP BY cartao;
-
--- 2. Lista os clubes com o total de cartões recebidos, ordenando do maior para o menor
-SELECT clube, COUNT(*) AS total_cartoes
-FROM cartoes
-GROUP BY clube
-ORDER BY total_cartoes DESC;
-
--- 3. Mostra os 10 jogadores que mais receberam cartões
-SELECT atleta, COUNT(*) AS total_cartoes
-FROM cartoes
-GROUP BY atleta
-ORDER BY total_cartoes DESC
-LIMIT 10;
-
--- 4. Mostra os 5 minutos com maior ocorrência de cartões aplicados
-SELECT minuto, COUNT(*) AS ocorrencias
-FROM cartoes
-GROUP BY minuto
-ORDER BY ocorrencias DESC
-LIMIT 5;
-
--- 5. Conta o total de cartões recebidos por posição (ex: zagueiro, atacante)
-SELECT posicao, COUNT(*) AS total_cartoes
-FROM cartoes
-GROUP BY posicao
-ORDER BY total_cartoes DESC;
-
--- 6. Lista os clubes com maior número de cartões vermelhos
-SELECT clube, COUNT(*) AS total_vermelhos
-FROM cartoes
-WHERE LOWER(cartao) = 'vermelho'
-GROUP BY clube
-ORDER BY total_vermelhos DESC;
-
 
