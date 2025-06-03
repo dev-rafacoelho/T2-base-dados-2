@@ -1,39 +1,50 @@
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const searchTerm = searchParams.get('search') || '';
-
+export async function GET() {
+  let connection;
   try {
-    const connection = await mysql.createConnection({
+    connection = await mysql.createConnection({
       host: 'easypanel.rafaelcoelho.shop',
       port: 3307,
       user: 'mysql',
       password: 'b0a0b7fe2d93e4e5c1b6',
       database: 'projeto_wellynton',
+      connectTimeout: 10000,
     });
 
-    let query = 'SELECT * FROM cartoes';
-    const queryParams: any[] = [];
+    await connection.ping();
 
-    if (searchTerm) {
-      // Adjust the WHERE clause based on your table structure
-      query += ' WHERE id LIKE ? OR column_name LIKE ?';
-      queryParams.push(`%${searchTerm}%`, `%${searchTerm}%`);
-    }
+    const [cards] = await connection.execute('SELECT * FROM cartoes LIMIT 5');
 
-    query += ' LIMIT 100'; // Add a reasonable limit
-
-    const [rows] = await connection.execute(query, queryParams);
-    await connection.end();
-
-    return NextResponse.json({ cards: rows });
+    return NextResponse.json({ cards });
   } catch (error) {
     console.error('Database error:', error);
+    let errorMessage = 'Erro ao conectar com o banco de dados';
+    
+    if (error instanceof Error) {
+      if (error.message.includes('ETIMEDOUT')) {
+        errorMessage = 'Tempo limite de conexão excedido. Verifique se o banco de dados está acessível.';
+      } else if (error.message.includes('ER_ACCESS_DENIED_ERROR')) {
+        errorMessage = 'Acesso negado ao banco de dados. Verifique as credenciais.';
+      } else if (error.message.includes('ER_BAD_DB_ERROR')) {
+        errorMessage = 'Banco de dados não encontrado.';
+      } else {
+        errorMessage = `Erro: ${error.message}`;
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Failed to fetch cards' },
+      { error: errorMessage },
       { status: 500 }
     );
+  } finally {
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (error) {
+        console.error('Erro ao fechar conexão:', error);
+      }
+    }
   }
 } 
