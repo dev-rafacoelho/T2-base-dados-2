@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import CardTable from "@/components/CardTable";
+import DynamicChartsContainer from "@/components/DynamicChartsContainer";
 
 export default function Home() {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("charts");
 
   const fetchCards = async () => {
     try {
@@ -30,11 +32,54 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-slate-800 mb-8">
-          Dashboard de Cartões
-        </h1>
+        {/* Header Hero Section */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mb-6 shadow-2xl">
+            <span className="text-3xl">⚽</span>
+          </div>
+          <h1 className="text-5xl font-extrabold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 bg-clip-text text-transparent mb-4">
+            Dashboard de Cartões
+          </h1>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Análise completa e interativa dos dados de disciplina do campeonato brasileiro
+          </p>
+        </div>
+
+        {/* Navegação por Abas */}
+        <div className="mb-10">
+          <nav className="flex justify-center">
+            <div className="bg-white rounded-2xl shadow-lg p-2 inline-flex space-x-2">
+              <button
+                onClick={() => setActiveTab("charts")}
+                className={`py-4 px-8 text-base font-semibold rounded-xl transition-all duration-300 transform ${
+                  activeTab === "charts"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg scale-105"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-slate-100 hover:scale-102"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <span className="text-xl">📊</span>
+                  Gráficos e Estatísticas
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("table")}
+                className={`py-4 px-8 text-base font-semibold rounded-xl transition-all duration-300 transform ${
+                  activeTab === "table"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg scale-105"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-slate-100 hover:scale-102"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <span className="text-xl">📋</span>
+                  Dados Tabulares
+                </span>
+              </button>
+            </div>
+          </nav>
+        </div>
 
         {error && (
           <div className="bg-red-100 border-l-4 border-red-500 p-4 mb-6">
@@ -59,12 +104,19 @@ export default function Home() {
           </div>
         )}
 
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-800 border-t-transparent"></div>
-          </div>
-        ) : (
-          <CardTable cards={cards} />
+        {/* Conteúdo baseado na aba ativa */}
+        {activeTab === "charts" && <DynamicChartsContainer />}
+        
+        {activeTab === "table" && (
+          <>
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-800 border-t-transparent"></div>
+              </div>
+            ) : (
+              <CardTable cards={cards} />
+            )}
+          </>
         )}
       </div>
     </div>

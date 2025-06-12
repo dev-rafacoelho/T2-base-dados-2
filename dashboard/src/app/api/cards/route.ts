@@ -15,7 +15,7 @@ export async function GET() {
 
     await connection.ping();
 
-    const [cards] = await connection.execute('SELECT * FROM cartoes LIMIT 5');
+    const [cards] = await connection.execute('SELECT * FROM cartoes ORDER BY partida_id DESC LIMIT 50');
 
     return NextResponse.json({ cards });
   } catch (error) {
