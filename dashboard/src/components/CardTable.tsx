@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useCallback } from "react";
 
 interface Card {
   id: number;
@@ -13,8 +13,33 @@ interface Card {
   [key: string]: any;
 }
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalRecords: number;
+  limit: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+interface FilterOptions {
+  cartoes: string[];
+  clubes: string[];
+  posicoes: string[];
+  rodadas: number[];
+}
+
 interface CardTableProps {
   cards: Card[];
+  pagination: PaginationInfo;
+  filterOptions: FilterOptions;
+  onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
+  onFilterChange: (
+    page?: number,
+    limit?: number,
+    filters?: Record<string, string>
+  ) => void;
 }
 
 interface Filters {
@@ -27,7 +52,14 @@ interface Filters {
   rodata: string;
 }
 
-export default function CardTable({ cards }: CardTableProps) {
+export default function CardTable({
+  cards,
+  pagination,
+  filterOptions,
+  onPageChange,
+  onLimitChange,
+  onFilterChange,
+}: CardTableProps) {
   const [filters, setFilters] = useState<Filters>({
     cartao: "",
     clube: "",
@@ -40,60 +72,22 @@ export default function CardTable({ cards }: CardTableProps) {
 
   const [showFilters, setShowFilters] = useState(false);
 
-  // Extrair valores únicos para os filtros select
-  const filterOptions = useMemo(() => {
-    return {
-      cartoes: [...new Set(cards.map((card) => card.cartao).filter(Boolean))],
-      clubes: [
-        ...new Set(cards.map((card) => card.clube).filter(Boolean)),
-      ].sort(),
-      posicoes: [
-        ...new Set(cards.map((card) => card.posicao).filter(Boolean)),
-      ].sort(),
-      rodadas: [
-        ...new Set(cards.map((card) => card.rodata).filter(Boolean)),
-      ].sort((a, b) => a - b),
-    };
-  }, [cards]);
+  const handleFilterChange = useCallback(
+    (field: keyof Filters, value: string) => {
+      const newFilters = { ...filters, [field]: value };
+      setFilters(newFilters);
 
-  // Filtrar dados baseado nos filtros aplicados
-  const filteredCards = useMemo(() => {
-    return cards.filter((card) => {
-      const matchCartao = !filters.cartao || card.cartao === filters.cartao;
-      const matchClube =
-        !filters.clube ||
-        card.clube?.toLowerCase().includes(filters.clube.toLowerCase());
-      const matchPosicao = !filters.posicao || card.posicao === filters.posicao;
-      const matchAtleta =
-        !filters.atleta ||
-        card.atleta?.toLowerCase().includes(filters.atleta.toLowerCase());
-      const matchMinutoMin =
-        !filters.minutoMin ||
-        (card.minuto && card.minuto >= parseInt(filters.minutoMin));
-      const matchMinutoMax =
-        !filters.minutoMax ||
-        (card.minuto && card.minuto <= parseInt(filters.minutoMax));
-      const matchRodata =
-        !filters.rodata || card.rodata === parseInt(filters.rodata);
-
-      return (
-        matchCartao &&
-        matchClube &&
-        matchPosicao &&
-        matchAtleta &&
-        matchMinutoMin &&
-        matchMinutoMax &&
-        matchRodata
+      // Chamar a API com os novos filtros
+      const cleanFilters = Object.fromEntries(
+        Object.entries(newFilters).filter(([, val]) => val !== "")
       );
-    });
-  }, [cards, filters]);
+      onFilterChange(1, pagination.limit, cleanFilters);
+    },
+    [filters, pagination.limit, onFilterChange]
+  );
 
-  const handleFilterChange = (field: keyof Filters, value: string) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
+  const clearFilters = useCallback(() => {
+    const emptyFilters = {
       cartao: "",
       clube: "",
       posicao: "",
@@ -101,14 +95,16 @@ export default function CardTable({ cards }: CardTableProps) {
       minutoMin: "",
       minutoMax: "",
       rodata: "",
-    });
-  };
+    };
+    setFilters(emptyFilters);
+    onFilterChange(1, pagination.limit, {});
+  }, [pagination.limit, onFilterChange]);
 
   const hasActiveFilters = Object.values(filters).some(
     (filter) => filter !== ""
   );
 
-  if (!cards.length) {
+  if (!cards.length && !hasActiveFilters) {
     return (
       <div className="w-full bg-white rounded-lg shadow-lg overflow-hidden border border-slate-200 p-4 text-center text-slate-700">
         No data available
@@ -116,7 +112,107 @@ export default function CardTable({ cards }: CardTableProps) {
     );
   }
 
-  const columnKeys = Object.keys(cards[0]).filter((key) => key !== "id");
+  const columnKeys =
+    cards.length > 0 ? Object.keys(cards[0]).filter((key) => key !== "id") : [];
+
+  // Componente de Paginação
+  const PaginationControls = () => {
+    const startRecord = (pagination.currentPage - 1) * pagination.limit + 1;
+    const endRecord = Math.min(
+      pagination.currentPage * pagination.limit,
+      pagination.totalRecords
+    );
+
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxPagesToShow = 5;
+      let startPage = Math.max(
+        1,
+        pagination.currentPage - Math.floor(maxPagesToShow / 2)
+      );
+      let endPage = Math.min(
+        pagination.totalPages,
+        startPage + maxPagesToShow - 1
+      );
+
+      if (endPage - startPage + 1 < maxPagesToShow) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+      return pages;
+    };
+
+    return (
+      <div className="bg-slate-50 px-6 py-4 border-t border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          {/* Informações de registros */}
+          <div className="text-sm text-slate-600">
+            Mostrando {startRecord} a {endRecord} de{" "}
+            {pagination.totalRecords.toLocaleString()} registros
+          </div>
+
+          {/* Controles de itens por página */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Itens por página:</span>
+            <select
+              value={pagination.limit}
+              onChange={(e) => onLimitChange(parseInt(e.target.value))}
+              className="border border-slate-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+            </select>
+          </div>
+
+          {/* Navegação de páginas */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onPageChange(pagination.currentPage - 1)}
+              disabled={!pagination.hasPreviousPage}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                pagination.hasPreviousPage
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              ← Anterior
+            </button>
+
+            {getPageNumbers().map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => onPageChange(pageNum)}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                  pageNum === pagination.currentPage
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-slate-600 hover:bg-blue-50 border border-slate-300"
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
+
+            <button
+              onClick={() => onPageChange(pagination.currentPage + 1)}
+              disabled={!pagination.hasNextPage}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                pagination.hasNextPage
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              Próxima →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
@@ -128,9 +224,8 @@ export default function CardTable({ cards }: CardTableProps) {
               📋 Dados Detalhados dos Cartões
             </h2>
             <p className="text-slate-300">
-              {hasActiveFilters
-                ? `${filteredCards.length} de ${cards.length} registros (filtrados)`
-                : `Últimos ${cards.length} registros do banco de dados`}
+              {pagination.totalRecords.toLocaleString()} registros encontrados
+              {hasActiveFilters && " (filtrados)"}
             </p>
           </div>
           <button
@@ -298,7 +393,8 @@ export default function CardTable({ cards }: CardTableProps) {
                   : "bg-slate-100 text-slate-600"
               }`}
             >
-              📊 {filteredCards.length} resultado(s) encontrado(s)
+              📊 {pagination.totalRecords.toLocaleString()} resultado(s)
+              encontrado(s)
             </div>
           </div>
         </div>
@@ -327,8 +423,8 @@ export default function CardTable({ cards }: CardTableProps) {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-100">
-            {filteredCards.length > 0 ? (
-              filteredCards.map((card, rowIndex) => (
+            {cards.length > 0 ? (
+              cards.map((card, rowIndex) => (
                 <tr
                   key={card.id ?? `row-${rowIndex}`}
                   className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200"
@@ -382,14 +478,8 @@ export default function CardTable({ cards }: CardTableProps) {
         </table>
       </div>
 
-      {/* Footer da Tabela */}
-      <div className="bg-slate-50 px-6 py-4 border-t border-slate-200">
-        <p className="text-sm text-slate-600 text-center">
-          {hasActiveFilters
-            ? `Mostrando ${filteredCards.length} de ${cards.length} registros (filtrados) • Dados atualizados em tempo real`
-            : `Mostrando ${cards.length} registros • Dados atualizados em tempo real`}
-        </p>
-      </div>
+      {/* Controles de Paginação */}
+      <PaginationControls />
     </div>
   );
 }

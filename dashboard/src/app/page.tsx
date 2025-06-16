@@ -4,20 +4,71 @@ import { useState, useEffect } from "react";
 import CardTable from "@/components/CardTable";
 import DynamicChartsContainer from "@/components/DynamicChartsContainer";
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalRecords: number;
+  limit: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+interface FilterOptions {
+  cartoes: string[];
+  clubes: string[];
+  posicoes: string[];
+  rodadas: number[];
+}
+
 export default function Home() {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("charts");
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    limit: 50,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    cartoes: [],
+    clubes: [],
+    posicoes: [],
+    rodadas: [],
+  });
 
-  const fetchCards = async () => {
+  const fetchCards = async (
+    page: number = 1,
+    limit: number = 50,
+    filters: Record<string, string> = {}
+  ) => {
     try {
       setLoading(true);
-      const response = await fetch("/api/cards");
+
+      // Construir URL com parâmetros
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([, value]) => value !== "")
+        ),
+      });
+
+      const response = await fetch(`/api/cards?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch data");
 
       const data = await response.json();
       setCards(data.cards);
+      setPagination(data.pagination);
+
+      // Só atualizar filterOptions se não houver filtros aplicados
+      if (data.filterOptions && Object.keys(filters).length === 0) {
+        setFilterOptions(data.filterOptions);
+      }
+
       setError("");
     } catch (err) {
       setError("Error loading data");
@@ -31,6 +82,14 @@ export default function Home() {
     fetchCards();
   }, []);
 
+  const handlePageChange = (newPage: number) => {
+    fetchCards(newPage, pagination.limit);
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    fetchCards(1, newLimit);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -43,7 +102,8 @@ export default function Home() {
             Dashboard de Cartões
           </h1>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Análise completa e interativa dos dados de disciplina do campeonato brasileiro
+            Análise completa e interativa dos dados de disciplina do campeonato
+            brasileiro
           </p>
         </div>
 
@@ -106,7 +166,7 @@ export default function Home() {
 
         {/* Conteúdo baseado na aba ativa */}
         {activeTab === "charts" && <DynamicChartsContainer />}
-        
+
         {activeTab === "table" && (
           <>
             {loading ? (
@@ -114,7 +174,14 @@ export default function Home() {
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-800 border-t-transparent"></div>
               </div>
             ) : (
-              <CardTable cards={cards} />
+              <CardTable
+                cards={cards}
+                pagination={pagination}
+                filterOptions={filterOptions}
+                onPageChange={handlePageChange}
+                onLimitChange={handleLimitChange}
+                onFilterChange={fetchCards}
+              />
             )}
           </>
         )}
