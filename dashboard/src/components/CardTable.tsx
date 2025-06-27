@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 interface Card {
   id: number;
@@ -71,23 +71,46 @@ export default function CardTable({
   });
 
   const [showFilters, setShowFilters] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
 
-  const handleFilterChange = useCallback(
-    (field: keyof Filters, value: string) => {
-      const newFilters = { ...filters, [field]: value };
-      setFilters(newFilters);
+  // Debounce effect para filtros (apenas após a primeira carga)
+  useEffect(() => {
+    // Pular na primeira carga para evitar requisição desnecessária
+    if (isFirstLoad) {
+      setIsFirstLoad(false);
+      return;
+    }
 
-      // Chamar a API com os novos filtros
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
       const cleanFilters = Object.fromEntries(
-        Object.entries(newFilters).filter(([, val]) => val !== "")
+        Object.entries(filters).filter(([, val]) => val !== "")
       );
       onFilterChange(1, pagination.limit, cleanFilters);
-    },
-    [filters, pagination.limit, onFilterChange]
-  );
+    }, 500);
 
-  const clearFilters = useCallback(() => {
-    const emptyFilters = {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [filters]);
+
+  const handleFilterChange = (field: keyof Filters, value: string) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const clearFilters = () => {
+    // Cancelar qualquer timeout ativo
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    setFilters({
       cartao: "",
       clube: "",
       posicao: "",
@@ -95,10 +118,10 @@ export default function CardTable({
       minutoMin: "",
       minutoMax: "",
       rodata: "",
-    };
-    setFilters(emptyFilters);
+    });
+    // Limpar filtros imediatamente (sem debounce)
     onFilterChange(1, pagination.limit, {});
-  }, [pagination.limit, onFilterChange]);
+  };
 
   const hasActiveFilters = Object.values(filters).some(
     (filter) => filter !== ""
